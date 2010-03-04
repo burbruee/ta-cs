@@ -19,12 +19,16 @@ namespace TROLLArena
     public class Game1 : Microsoft.Xna.Framework.Game
     {
         GraphicsDeviceManager graphics;
-        SpriteBatch spriteBatch;
+        SpriteBatch spriteBatch;                
+
+        Sprite player;
+        Sprite enemy;
 
         public Game1()
         {
             graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
+            this.IsMouseVisible = false;
         }
 
         /// <summary>
@@ -35,9 +39,12 @@ namespace TROLLArena
         /// </summary>
         protected override void Initialize()
         {
-            // TODO: Add your initialization logic here
-
-            base.Initialize();
+            graphics.PreferredBackBufferWidth = 1280;
+            graphics.PreferredBackBufferHeight = 720;
+            graphics.IsFullScreen = false;
+            
+            graphics.ApplyChanges();
+            base.Initialize();            
         }
 
         /// <summary>
@@ -48,8 +55,22 @@ namespace TROLLArena
         {
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
+            player = new Sprite(Vector2.Zero);
+            enemy = new Sprite(Vector2.Zero);
+            
+            player.texture = Content.Load<Texture2D>(@"Textures\TROLLET_HD");
+            enemy.texture = Content.Load<Texture2D>(@"Textures\cat");          
 
-            // TODO: use this.Content to load your game content here
+            player.scale = 1f;
+            
+            player.position = new Vector2(graphics.PreferredBackBufferWidth / 2, graphics.PreferredBackBufferHeight - player.texture.Height / 2);            
+            player.origin = new Vector2(player.texture.Width / 2, player.texture.Height / 2);
+
+            enemy.scale = 1f;
+            enemy.position = new Vector2(graphics.PreferredBackBufferWidth / 2, enemy.texture.Height);
+            enemy.origin = new Vector2(enemy.texture.Width / 2, enemy.texture.Height / 2);
+            
+
         }
 
         /// <summary>
@@ -71,8 +92,8 @@ namespace TROLLArena
             // Allows the game to exit
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
                 this.Exit();
-
-            // TODO: Add your update logic here
+            
+            enemy.rotation = (float)gameTime.TotalGameTime.TotalSeconds * (float)1.5;
 
             base.Update(gameTime);
         }
@@ -84,8 +105,16 @@ namespace TROLLArena
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.CornflowerBlue);
+            MouseState mouseState = Mouse.GetState();
+            Vector2 mousePos = new Vector2(mouseState.X, mouseState.Y);
 
-            // TODO: Add your drawing code here
+
+            spriteBatch.Begin();
+
+            player.Draw(spriteBatch, player.texture, mousePos, Color.White, player.rotation, player.origin, player.scale, SpriteEffects.None);
+            enemy.Draw(spriteBatch, enemy.texture, enemy.position, Color.White, enemy.rotation, enemy.origin, enemy.scale, SpriteEffects.None);
+
+            spriteBatch.End();
 
             base.Draw(gameTime);
         }
