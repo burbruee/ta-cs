@@ -58,7 +58,7 @@ namespace TROLLArena
             player = new Sprite(Vector2.Zero);
             enemy = new Sprite(Vector2.Zero);
             
-            player.texture = Content.Load<Texture2D>(@"Textures\TROLLET_HD");
+            player.texture = Content.Load<Texture2D>(@"Textures\TROLLET_HD_small");
             enemy.texture = Content.Load<Texture2D>(@"Textures\cat");          
 
             player.scale = 1f;
@@ -92,8 +92,8 @@ namespace TROLLArena
             // Allows the game to exit
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
                 this.Exit();
-            
-            enemy.rotation = (float)gameTime.TotalGameTime.TotalSeconds * (float)1.5;
+
+            enemy.rotation = (float)gameTime.TotalGameTime.TotalSeconds * (float)157.5;
 
             base.Update(gameTime);
         }
@@ -107,13 +107,17 @@ namespace TROLLArena
             GraphicsDevice.Clear(Color.CornflowerBlue);
             MouseState mouseState = Mouse.GetState();
             Vector2 mousePos = new Vector2(mouseState.X, mouseState.Y);
+          
+            spriteBatch.Begin(SpriteBlendMode.AlphaBlend);
 
-
-            spriteBatch.Begin();
+            if (mousePos.X < player.origin.X) mousePos.X = player.origin.X;
+            if (mousePos.Y < player.origin.Y) mousePos.Y = player.origin.Y;
+            if (mousePos.X > graphics.PreferredBackBufferWidth - player.origin.X) mousePos.X = graphics.PreferredBackBufferWidth - player.origin.X;
+            if (mousePos.Y > graphics.PreferredBackBufferHeight - player.origin.Y) mousePos.Y = graphics.PreferredBackBufferHeight - player.origin.Y;
 
             player.Draw(spriteBatch, player.texture, mousePos, Color.White, player.rotation, player.origin, player.scale, SpriteEffects.None);
-            enemy.Draw(spriteBatch, enemy.texture, enemy.position, Color.White, enemy.rotation, enemy.origin, enemy.scale, SpriteEffects.None);
-
+            enemy.Draw(spriteBatch, enemy.texture, enemy.position, new Color(255, 255, 255, 255), enemy.rotation, enemy.origin, enemy.scale, SpriteEffects.None);
+            
             spriteBatch.End();
 
             base.Draw(gameTime);
