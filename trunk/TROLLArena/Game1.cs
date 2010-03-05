@@ -39,9 +39,9 @@ namespace TROLLArena
         /// </summary>
         protected override void Initialize()
         {
-            graphics.PreferredBackBufferWidth = 1280;
-            graphics.PreferredBackBufferHeight = 720;
-            graphics.IsFullScreen = false;
+            graphics.PreferredBackBufferWidth = 1024;
+            graphics.PreferredBackBufferHeight = 600;
+            graphics.IsFullScreen = true;
             
             graphics.ApplyChanges();
             base.Initialize();            
@@ -66,10 +66,14 @@ namespace TROLLArena
             player.position = new Vector2(graphics.PreferredBackBufferWidth / 2, graphics.PreferredBackBufferHeight - player.texture.Height / 2);            
             player.origin = new Vector2(player.texture.Width / 2, player.texture.Height / 2);
 
-            enemy.scale = 1f;
-            enemy.position = new Vector2(graphics.PreferredBackBufferWidth / 2, enemy.texture.Height);
-            enemy.origin = new Vector2(enemy.texture.Width / 2, enemy.texture.Height / 2);
+            Random random = new Random();
             
+            enemy.scale = 1f;
+            //enemy.position = new Vector2(graphics.PreferredBackBufferWidth / 2, enemy.texture.Height);
+            enemy.position = new Vector2(random.Next(enemy.texture.Width / 2, graphics.PreferredBackBufferWidth - enemy.texture.Width / 2), random.Next(enemy.texture.Height / 2, graphics.PreferredBackBufferHeight - enemy.texture.Height / 2));
+            enemy.origin = new Vector2(enemy.texture.Width / 2, enemy.texture.Height / 2);
+            enemy.vX = random.Next(-8, 8);
+            enemy.vY = random.Next(-8, 8);
 
         }
 
@@ -93,7 +97,14 @@ namespace TROLLArena
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
                 this.Exit();
 
-            enemy.rotation = (float)gameTime.TotalGameTime.TotalSeconds * (float)157.5;
+            enemy.rotation = (float)gameTime.TotalGameTime.TotalSeconds * (float)1.5;
+            enemy.position.X += enemy.vX;
+            enemy.position.Y += enemy.vY;
+
+            if (enemy.position.X < enemy.texture.Width / 2) enemy.vX = -enemy.vX;
+            if (enemy.position.X > graphics.PreferredBackBufferWidth - enemy.texture.Width / 2) enemy.vX = -enemy.vX;
+            if (enemy.position.Y < enemy.texture.Height / 2) enemy.vY = -enemy.vY;
+            if (enemy.position.Y > graphics.PreferredBackBufferHeight - enemy.texture.Height / 2) enemy.vY = -enemy.vY;
 
             base.Update(gameTime);
         }
@@ -107,7 +118,7 @@ namespace TROLLArena
             GraphicsDevice.Clear(Color.CornflowerBlue);
             MouseState mouseState = Mouse.GetState();
             Vector2 mousePos = new Vector2(mouseState.X, mouseState.Y);
-          
+
             spriteBatch.Begin(SpriteBlendMode.AlphaBlend);
 
             if (mousePos.X < player.origin.X) mousePos.X = player.origin.X;
@@ -116,6 +127,7 @@ namespace TROLLArena
             if (mousePos.Y > graphics.PreferredBackBufferHeight - player.origin.Y) mousePos.Y = graphics.PreferredBackBufferHeight - player.origin.Y;
 
             player.Draw(spriteBatch, player.texture, mousePos, Color.White, player.rotation, player.origin, player.scale, SpriteEffects.None);
+
             enemy.Draw(spriteBatch, enemy.texture, enemy.position, new Color(255, 255, 255, 255), enemy.rotation, enemy.origin, enemy.scale, SpriteEffects.None);
             
             spriteBatch.End();

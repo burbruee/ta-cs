@@ -15,6 +15,8 @@ namespace TROLLArena
         public float scale;
         public Texture2D texture;
         public Vector2 origin;
+        public float vX;
+        public float vY;
 
         public Sprite(Vector2 position)
         {
