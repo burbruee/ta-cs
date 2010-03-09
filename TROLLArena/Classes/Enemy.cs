@@ -9,22 +9,34 @@ namespace TROLLArena
 {
     class Enemy : Actor
     {
-        private float speed;
-        private Actor target;
+        const float ENEMY_SCALE_TIME = .5f;
 
-        public Enemy(Texture2D texture, Actor target, float speed) : base(texture)
+        private float baseSpeed;
+        private float speedVariation;
+
+        private Vector2 pointA, pointB;
+        private float amount;
+        private float moveTime;
+
+        public Enemy(Texture2D texture, float baseSpeed, float speedVariation) : base(texture)
         {
-            this.target = target;
-            this.speed = speed;
+            this.baseSpeed = baseSpeed;
+            this.speedVariation = speedVariation;
         }
 
         public override void Update(GameTime gameTime)
         {
-            if (target == null)
-                return;
 
-            Vector2 direction = Vector2.Normalize(target.Position - this.position);
-            this.position += direction * speed;
+        }
+
+        private void SetRandomMove()
+        {
+
+        }
+
+        public static void AddEnemies(int numEnemies, Texture2D texture, float baseSpeed, float speedVariation)
+        {
+
         }
     }
 }

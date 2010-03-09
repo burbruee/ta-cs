@@ -86,7 +86,6 @@
   <ItemGroup>
     <Compile Include="Classes\Actor.cs" />
     <Compile Include="Classes\BouncingEnemy.cs" />
-    <Compile Include="Classes\DrunkenEnemy.cs" />
     <Compile Include="Classes\Enemy.cs" />
     <Compile Include="Classes\Player.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
