@@ -12,7 +12,7 @@ namespace TROLLArena
         const float ENEMY_SCALE_TIME = .5f;
 
         private float baseSpeed;
-        private float speedVariation;
+        private float speedVariation;        
 
         private Vector2 pointA, pointB;
         private float amount;

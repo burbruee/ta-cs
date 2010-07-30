@@ -11,6 +11,15 @@ namespace TROLLArena
     {
         private float vX;
         private float vY;
+        private Random random;
+        private float spawnTime;
+        private int totalSpawns;
+
+        public int TotalSpawns
+        {
+            get { return totalSpawns; }
+            set { totalSpawns = value; }
+        }
 
         public float VX
         {
@@ -29,20 +38,31 @@ namespace TROLLArena
         {
             this.vX = vX;
             this.vY = vY;
-            this.position = new Vector2(300, 200);
+            this.spawnTime = 0;
+            this.totalSpawns = 0;
+            this.random = new Random();
+            this.position = new Vector2(random.Next(100,1000), random.Next(70,200));
             this.origin = new Vector2(this.texture.Width / 2, this.texture.Height / 2);
         }
 
         public override void Update(GameTime gameTime)
         {
-            if (this.position.X < (this.texture.Width / 2)) this.vX = -this.vX;
-            if (this.position.Y < (this.texture.Height / 2)) this.vY = -this.vY;
-            if (this.position.X > (1024 - this.texture.Width / 2)) this.vX = -this.vX;
-            if (this.position.Y > (600 - this.texture.Height / 2)) this.vY = -this.vY;
+            if (this.position.X < (this.Origin.X)) this.vX = -this.vX;
+            if (this.position.Y < (this.Origin.Y)) this.vY = -this.vY;
+            if (this.position.X > (1280 - this.Origin.X)) this.vX = -this.vX;
+            if (this.position.Y > (720 - this.Origin.Y)) this.vY = -this.vY;
 
             this.position.X += this.vX;
             this.position.Y += this.vY;
             this.rotation = (float)gameTime.TotalGameTime.TotalSeconds * (float)1.5;
+
+            this.spawnTime += (float)gameTime.ElapsedGameTime.TotalMilliseconds;
+            if (spawnTime >= 5000)
+            {
+                spawnTime -= 5000;
+                this.totalSpawns+=2;
+                new BouncingEnemy(this.texture, random.Next(2,5), random.Next(2,5));
+            }
 
             //Vector2 direction = Vector2.Zero;
             //direction.X = this.vX;
