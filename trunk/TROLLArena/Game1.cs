@@ -28,17 +28,22 @@ namespace TROLLArena
     public class Game1 : Microsoft.Xna.Framework.Game
     {
         //Screen Size
-        internal const int SCREEN_WIDTH = 960;
-        internal const int SCREEN_HEIGHT = 540;
-                
+        internal const int SCREEN_WIDTH = 1280;
+        internal const int SCREEN_HEIGHT = 720;
+
         //Player
         const float PLAYER_SPEED_SLOW = 5f;
         const float PLAYER_SPEED_FAST = 10f;
         private Player player;
 
+        //Font
+        double score = 0;
+        string framerate = "";
+
         //Textures
         Texture2D backgroundTexture;
         Texture2D playerTexture;
+        Texture2D enemyTexture;
 
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
@@ -46,9 +51,20 @@ namespace TROLLArena
         static Random random;
 
         GameState gameState;
+        float deltaFPSTime = 0;
+        private float _ElapsedTime, _TotalFrames, _Fps;
+        private bool _ShowFPS;
+
+        private int enemies;
 
         private string col;
         protected Vector2 mousePos;
+
+        public bool ShowFPS
+        {
+            get { return _ShowFPS; }
+            set { _ShowFPS = value; }
+        }
 
         public Game1()
         {
@@ -71,7 +87,7 @@ namespace TROLLArena
             random = new Random();
             this.gameState = GameState.Playing;
 
-            base.Initialize();            
+            base.Initialize();
         }
 
         /// <summary>
@@ -86,10 +102,12 @@ namespace TROLLArena
             font = Content.Load<SpriteFont>(@"Textures\Tahoma");
             backgroundTexture = Content.Load<Texture2D>(@"Textures\background");
             playerTexture = Content.Load<Texture2D>(@"Textures\TROLLET_HD_small");
+            enemyTexture = Content.Load<Texture2D>(@"Textures\japan_HD");
 
-            this.player = new Player(playerTexture);
+            this.player = new Player(playerTexture);            
+            new BouncingEnemy(enemyTexture, random.Next(1,10), random.Next(1,10));
             //player.StartScale(1.25f, 1);
-            
+
         }
 
         /// <summary>
@@ -98,7 +116,7 @@ namespace TROLLArena
         /// </summary>
         protected override void UnloadContent()
         {
-            // TODO: Unload any non ContentManager content here
+            // TODO: Unload any non ContentManager content here            
         }
 
         /// <summary>
@@ -126,43 +144,65 @@ namespace TROLLArena
                 case GameState.LevelChange:
                     break;
 
-                case GameState.Playing:
+                case GameState.Playing:                                        
+                    float elapsed = (float)gameTime.ElapsedRealTime.TotalMilliseconds;                    
+                    deltaFPSTime += elapsed;
+
+                    if (deltaFPSTime > 1000)
+                    {
+                        float fps = 1000 / elapsed;
+                        framerate = fps.ToString("F2");
+                        deltaFPSTime -= 1;
+                    }
+                    
+                    //Update score
+                    score += gameTime.ElapsedGameTime.TotalSeconds;                  
 
                     for (int i = Actor.Actors.Count - 1; i >= 0; i--)
                     {
                         Actor actor = Actor.Actors[i];
                         actor.Update(gameTime);
 
+
+
                         if (actor is Player)
                         {
                             Vector2 direction = new Vector2(mouseState.X, mouseState.Y);
-                            /*
-                            if (direction.Length() > 0f)
-                                direction.Normalize();
-                            else
-                                direction = Vector2.Zero;
-                            */
 
                             actor.Position = direction;
 
-                            
-                            if (actor.Position.X < 0)
-                                actor.position.X = 0;
-                            if (actor.Position.Y < 0)
-                                actor.position.Y = 0;
-                            if (actor.Position.X > graphics.PreferredBackBufferWidth - actor.Texture.Width)
-                                actor.position.X = graphics.PreferredBackBufferWidth - actor.Texture.Width;
-                            if (actor.Position.Y > graphics.PreferredBackBufferHeight - actor.Texture.Height)
-                                actor.position.Y = graphics.PreferredBackBufferHeight - actor.Texture.Height;
-                            
+
+                            if (actor.Position.X < actor.Origin.X)
+                                actor.position.X = actor.Origin.X;
+                            if (actor.Position.Y < actor.Origin.Y)
+                                actor.position.Y = actor.Origin.Y;
+                            if (actor.Position.X > graphics.PreferredBackBufferWidth - actor.Origin.X)
+                                actor.position.X = graphics.PreferredBackBufferWidth - actor.Origin.X;
+                            if (actor.Position.Y > graphics.PreferredBackBufferHeight - actor.Origin.Y)
+                                actor.position.Y = graphics.PreferredBackBufferHeight - actor.Origin.Y;
+
+                            continue;
+                        }
+
+                        BouncingEnemy enemy = actor as BouncingEnemy;
+                        //Update enemies
+                        enemies = enemy.TotalSpawns;
+                        if (enemy != null)
+                        {
+                            if (Actor.CheckCollision(enemy, this.player))
+                            {
+                                this.gameState = GameState.Died;
+                                Screenshot();
+                                Highscores.sendScore("1", "Burbruee", "XNA Test", (int)score);
+                            }
                         }
                     }
 
                     break;
-                
+
                 case GameState.Died:
                     break;
-                
+
                 case GameState.Gameover:
                     break;
             }
@@ -177,17 +217,17 @@ namespace TROLLArena
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.CornflowerBlue);
-            
+
             spriteBatch.Begin(SpriteBlendMode.AlphaBlend);
-            
+
             switch (this.gameState)
             {
                 case GameState.Title:
                     break;
-                
+
                 case GameState.LevelChange:
                     break;
-                
+
                 case GameState.Playing:
                 case GameState.Died:
                 case GameState.Gameover:
@@ -195,7 +235,10 @@ namespace TROLLArena
                     //Draw Actors
                     spriteBatch.Draw(backgroundTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), Color.White);
                     Actor.DrawActors(spriteBatch);
-                    
+                    spriteBatch.DrawString(font, "Enemies: " + enemies, new Vector2(10, 630), Color.White);
+                    spriteBatch.DrawString(font, "Score: " + score.ToString("F2"), new Vector2(10, 690), Color.White);
+                    spriteBatch.DrawString(font, "FPS: " + framerate, new Vector2(10, 660), Color.White);
+
                     break;
             }
 
@@ -203,5 +246,20 @@ namespace TROLLArena
 
             base.Draw(gameTime);
         }
+
+        private void Screenshot()
+        {            
+            
+            using (ResolveTexture2D screenshot = new ResolveTexture2D(graphics.GraphicsDevice,
+                   graphics.GraphicsDevice.PresentationParameters.BackBufferWidth,
+                   graphics.GraphicsDevice.PresentationParameters.BackBufferHeight, 1,
+                   graphics.GraphicsDevice.PresentationParameters.BackBufferFormat
+                                                         ))
+            {
+                graphics.GraphicsDevice.ResolveBackBuffer(screenshot);
+                screenshot.Save("screenshot.png", ImageFileFormat.Png);
+            }
+        }
+
     }
 }

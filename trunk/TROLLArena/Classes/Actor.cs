@@ -101,7 +101,7 @@ namespace TROLLArena
             Actors.Add(this);
             this.texture = texture;
             this.visible = true;
-            
+            this.origin = new Vector2(texture.Width/2, texture.Height/2);
             this.tint = Color.White;
             this.scale = 1f;
         }
@@ -140,7 +140,9 @@ namespace TROLLArena
 
         public static bool CheckCollision(Actor actorA, Actor actorB)
         {
-            return false;
+            float distance = Vector2.Distance(actorA.Position, actorB.Position);
+
+            return distance < actorA.Radius + actorB.Radius;
         }
 
         public bool CheckCollisionWithAny()
