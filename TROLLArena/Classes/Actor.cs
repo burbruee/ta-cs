@@ -18,10 +18,12 @@ namespace TROLLArena
         protected Vector2 origin;
         protected SpriteEffects spriteEffects;
 
+        private string collisionState;
+
         //Flicker
         const float FLICKER_FREQUENCY = 4f;
         private bool visible;
-        private bool flicker;
+        private bool flicker;        
         double nextFlickerUpdate;
          
         //Scaling
@@ -30,6 +32,12 @@ namespace TROLLArena
         private float scalePerSecond;
 
         #region properties
+
+        public string CollisionState
+        {
+            get { return collisionState; }
+            set { collisionState = value; }
+        }
 
         public Texture2D Texture
         {
@@ -55,7 +63,7 @@ namespace TROLLArena
             set { this.scale = value; }
         }
 
-        public bool isScaling
+        public bool IsScaling
         {
             get { return this.scaleTime > 0f; } 
         }
@@ -64,7 +72,7 @@ namespace TROLLArena
         {
             get 
             { 
-                return new Vector2(this.Texture.Width / 2, this.Texture.Height / 2); 
+                return new Vector2(this.texture.Width / 2, this.texture.Height / 2); 
             }
         }
 
@@ -104,6 +112,8 @@ namespace TROLLArena
             this.origin = new Vector2(texture.Width/2, texture.Height/2);
             this.tint = Color.White;
             this.scale = 1f;
+            this.collisionState = "";
+            //this.StartScale(1, 2);
         }
 
         public virtual void Update(GameTime gameTime)
@@ -117,7 +127,7 @@ namespace TROLLArena
                 }
             }
 
-            if (this.isScaling)
+            if (this.IsScaling)
             {
                 this.scale += this.scalePerSecond * (float)gameTime.ElapsedGameTime.TotalSeconds;
                 this.scaleTime -= (float)gameTime.ElapsedGameTime.TotalSeconds;
@@ -135,7 +145,7 @@ namespace TROLLArena
         public void Draw(SpriteBatch spriteBatch)
         {
             if (this.visible)
-                spriteBatch.Draw(this.texture, this.position, null, this.tint, this.rotation, this.origin, 1f, this.spriteEffects, 0f);
+                spriteBatch.Draw(this.texture, this.position, null, this.tint, this.rotation, this.origin, this.scale, this.spriteEffects, 0f);
         }
 
         public static bool CheckCollision(Actor actorA, Actor actorB)
@@ -152,7 +162,7 @@ namespace TROLLArena
 
         public void StartScale(float targetScale, float scaleTime)
         {
-            if (this.isScaling)
+            if (this.IsScaling)
                 return;
 
             this.scaleTime = scaleTime;
