@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Threading;
+using System.IO;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Content;
@@ -34,16 +37,42 @@ namespace TROLLArena
         //Player
         const float PLAYER_SPEED_SLOW = 5f;
         const float PLAYER_SPEED_FAST = 10f;
+        const float PLAYER_INVICIBILITY_TIME = 1.5f;
         private Player player;
+
+        //Enemy
+        const float ENEMY_BASE_SPEED = 2f;
+        const float ENEMY_SPEED_VARIATION = 1f;
+        float ENEMY_VELOCITY_X = 4f;
+        float ENEMY_VELOCITY_Y = 3f;
+        int enemyCount;
 
         //Font
         double score = 0;
-        string framerate = "";
+        string framerate = "";        
+
+        //Screens
+        Color overlayColor = new Color(225, 0, 0, 143);
+
+        //Lives
+        private int lives;
+        const int STARTING_LIVES = 3;
+
+        //Screenshot
+#if WINDOWS
+        private ResolveTexture2D resolveTexture;
+        private bool takeScreenshot;        
+        private int screenshotNumber = 1;
+        private Thread screenshotThread;
+#endif
 
         //Textures
         Texture2D backgroundTexture;
         Texture2D playerTexture;
         Texture2D enemyTexture;
+        Texture2D overlayTexture;
+        Texture2D titleTexture;
+        Texture2D levelChangeTexture;
 
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
@@ -52,19 +81,11 @@ namespace TROLLArena
 
         GameState gameState;
         float deltaFPSTime = 0;
-        private float _ElapsedTime, _TotalFrames, _Fps;
-        private bool _ShowFPS;
 
-        private int enemies;
-
-        private string col;
+        double timer = 10;
+        
         protected Vector2 mousePos;
 
-        public bool ShowFPS
-        {
-            get { return _ShowFPS; }
-            set { _ShowFPS = value; }
-        }
 
         public Game1()
         {
@@ -85,7 +106,9 @@ namespace TROLLArena
         protected override void Initialize()
         {
             random = new Random();
-            this.gameState = GameState.Playing;
+            this.gameState = GameState.Title;
+
+
 
             base.Initialize();
         }
@@ -102,11 +125,11 @@ namespace TROLLArena
             font = Content.Load<SpriteFont>(@"Textures\Tahoma");
             backgroundTexture = Content.Load<Texture2D>(@"Textures\background");
             playerTexture = Content.Load<Texture2D>(@"Textures\TROLLET_HD_small");
-            enemyTexture = Content.Load<Texture2D>(@"Textures\japan_HD");
+            enemyTexture = Content.Load<Texture2D>(@"Textures\japan");
+            overlayTexture = Content.Load<Texture2D>(@"Textures\fill");
+            levelChangeTexture = Content.Load<Texture2D>(@"Textures\GetReady");
+            titleTexture = Content.Load<Texture2D>(@"Textures\title");
 
-            this.player = new Player(playerTexture);            
-            new BouncingEnemy(enemyTexture, random.Next(1,10), random.Next(1,10));
-            //player.StartScale(1.25f, 1);
 
         }
 
@@ -139,9 +162,19 @@ namespace TROLLArena
             switch (this.gameState)
             {
                 case GameState.Title:
+                    if (Keyboard.GetState().IsKeyDown(Keys.Space))
+                    {
+                        BeginGame();
+                        this.gameState = GameState.LevelChange;
+                    }
                     break;
 
                 case GameState.LevelChange:
+
+                    Thread.Sleep(3000);    
+                    BeginLevel();
+                    this.gameState = GameState.Playing;
+                    
                     break;
 
                 case GameState.Playing:                                        
@@ -156,7 +189,7 @@ namespace TROLLArena
                     }
                     
                     //Update score
-                    score += gameTime.ElapsedGameTime.TotalSeconds;                  
+                    //this.score += gameTime.ElapsedGameTime.TotalSeconds;                  
 
                     for (int i = Actor.Actors.Count - 1; i >= 0; i--)
                     {
@@ -184,16 +217,38 @@ namespace TROLLArena
                             continue;
                         }
 
-                        BouncingEnemy enemy = actor as BouncingEnemy;
+                        Enemy enemy = actor as Enemy;
                         //Update enemies
-                        enemies = enemy.TotalSpawns;
+                        enemyCount = (int)Actor.Actors.Count() - 1;
+                        
+
+                        if (gameTime.TotalGameTime.TotalSeconds > timer)
+                        {
+                            ENEMY_VELOCITY_X += .5f;
+                            ENEMY_VELOCITY_Y += .5f;
+                            Enemy.AddEnemies(1, enemyTexture, random.Next(0,200), ENEMY_BASE_SPEED, ENEMY_SPEED_VARIATION, ENEMY_VELOCITY_X, ENEMY_VELOCITY_Y);
+                            score += 143;
+                            timer = gameTime.TotalGameTime.TotalSeconds + 10d;
+                        }
+                         
                         if (enemy != null)
                         {
-                            if (Actor.CheckCollision(enemy, this.player))
+                            if (!player.IsInvincible && enemy.IsHarmful && Actor.CheckCollision(enemy, this.player))
                             {
-                                this.gameState = GameState.Died;
-                                Screenshot();
-                                Highscores.sendScore("1", "Burbruee", "XNA Test", (int)score);
+
+                                IPHostEntry ip = null;
+                                try
+                                {
+                                    ip = Dns.GetHostEntry("highscore.burbruee.se");
+                                    Highscores.sendScore("1", "Burbruee", "Enemies: " + enemyCount + "<br />Died at " + gameTime.TotalGameTime.Minutes.ToString() + " min, " + gameTime.TotalGameTime.Seconds.ToString() + " sec", (int)score);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine(ex.Message);
+                                }
+
+                                this.lives--;
+                                this.gameState = GameState.Gameover;                                    
                             }
                         }
                     }
@@ -201,9 +256,17 @@ namespace TROLLArena
                     break;
 
                 case GameState.Died:
+                    Thread.Sleep(3000);
+                    this.gameState = GameState.LevelChange;                                            
+
                     break;
 
                 case GameState.Gameover:
+                    takeScreenshot = true;
+                    Screenshot();
+                    Thread.Sleep(3000);                    
+                    this.gameState = GameState.Title;
+                    
                     break;
             }
 
@@ -223,21 +286,36 @@ namespace TROLLArena
             switch (this.gameState)
             {
                 case GameState.Title:
-                    break;
+                    DrawTitleScreen();
+                    spriteBatch.DrawString(font, "PRESS SPACEBAR TO BEGIN", new Vector2(SCREEN_WIDTH/2-120, SCREEN_HEIGHT/2-30), Color.White);                    
+                    break;                    
 
                 case GameState.LevelChange:
+                    DrawLevelChangeScreen();
                     break;
 
                 case GameState.Playing:
                 case GameState.Died:
                 case GameState.Gameover:
 
-                    //Draw Actors
+                    //Draw Background
                     spriteBatch.Draw(backgroundTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), Color.White);
+
+                    //Draw Actors                    
                     Actor.DrawActors(spriteBatch);
-                    spriteBatch.DrawString(font, "Enemies: " + enemies, new Vector2(10, 630), Color.White);
+                    
+                    //Draw Info
+                    spriteBatch.DrawString(font, this.player.CollisionState, new Vector2(10, 600), Color.White);
+                    spriteBatch.DrawString(font, "Time: " + gameTime.ElapsedGameTime.Minutes.ToString() + " min, " + gameTime.TotalGameTime.Seconds.ToString() + " sec", new Vector2(10, 600), Color.White);                    
+                    spriteBatch.DrawString(font, "Enemies: " + enemyCount, new Vector2(10, 630), Color.White);
                     spriteBatch.DrawString(font, "Score: " + score.ToString("F2"), new Vector2(10, 690), Color.White);
-                    spriteBatch.DrawString(font, "FPS: " + framerate, new Vector2(10, 660), Color.White);
+                    spriteBatch.DrawString(font, "FPS: " + framerate, new Vector2(10, 660), Color.White);                    
+
+                    //Draw Deathscreen
+                    if (this.gameState == GameState.Died)
+                        DrawDeathScreen();
+                    else if (this.gameState == GameState.Gameover)
+                        DrawGameOverScreen();
 
                     break;
             }
@@ -247,19 +325,100 @@ namespace TROLLArena
             base.Draw(gameTime);
         }
 
+
+
+        #region gameplay methods
+
+        private void BeginGame()
+        {
+            this.lives = STARTING_LIVES;
+            this.score = 0;
+        }
+
+        private void BeginLevel()
+        {
+            Actor.Actors.Clear();
+            this.score = 0;
+            ENEMY_VELOCITY_X = 4f;
+            ENEMY_VELOCITY_Y = 3f;
+
+            Enemy.AddEnemies(1, enemyTexture, random.Next(0, 200), ENEMY_BASE_SPEED, ENEMY_SPEED_VARIATION, ENEMY_VELOCITY_X, ENEMY_VELOCITY_Y);
+            this.player = new Player(playerTexture);
+            this.player.Reset(PLAYER_INVICIBILITY_TIME);
+        }
+
+        #endregion
+
+        #region utility methods
+
         private void Screenshot()
-        {            
-            
-            using (ResolveTexture2D screenshot = new ResolveTexture2D(graphics.GraphicsDevice,
-                   graphics.GraphicsDevice.PresentationParameters.BackBufferWidth,
-                   graphics.GraphicsDevice.PresentationParameters.BackBufferHeight, 1,
-                   graphics.GraphicsDevice.PresentationParameters.BackBufferFormat
-                                                         ))
+        {
+            if (takeScreenshot && (screenshotThread == null || screenshotThread.Join(0)))
             {
-                graphics.GraphicsDevice.ResolveBackBuffer(screenshot);
-                screenshot.Save("screenshot.png", ImageFileFormat.Png);
+                resolveTexture = new ResolveTexture2D(
+                  graphics.GraphicsDevice,
+                  graphics.GraphicsDevice.PresentationParameters.BackBufferWidth,
+                  graphics.GraphicsDevice.PresentationParameters.BackBufferHeight,
+                  1,
+                  graphics.GraphicsDevice.PresentationParameters.BackBufferFormat);
+
+
+                GraphicsDevice.ResolveBackBuffer(resolveTexture);
+                takeScreenshot = false;
+
+                screenshotThread = new Thread(() =>
+                {
+                    string filename;
+                    filename = Window.Title + ".png";                    
+
+                    resolveTexture.Save(filename,
+                      ImageFileFormat.Png);
+                });
+                screenshotThread.Start();
             }
         }
+
+        public static Vector2 GetRandomScreenPosition(int padding)
+        {
+            return new Vector2(random.Next(padding, SCREEN_WIDTH - padding), random.Next(padding, SCREEN_HEIGHT - padding));
+        }
+
+        public static float Range(float min, float max)
+        {
+            return (float)random.NextDouble() * (max - min) + min;
+        }
+
+        #endregion
+
+        #region screens
+
+        private void DrawTitleScreen()
+        {
+            spriteBatch.Draw(titleTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), Color.White);
+        }
+
+        private void DrawDeathScreen()
+        {
+            spriteBatch.Draw(overlayTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), overlayColor);
+            spriteBatch.DrawString(font, "YOU DIED!", new Vector2(590f, 150f), Color.White);
+            spriteBatch.DrawString(font, "PRESS SPACEBAR TO RESTART!", new Vector2(500f, 180f), Color.White);
+        }
+
+        private void DrawGameOverScreen()
+        {
+            spriteBatch.Draw(overlayTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), overlayColor);
+            spriteBatch.DrawString(font, "GAME OVER!", new Vector2(590f, 150f), Color.White);
+            spriteBatch.DrawString(font, "PRESS ENTER TO RETURN TO TITLE SCREEN!", new Vector2(440f, 180f), Color.White);
+        }
+
+        private void DrawLevelChangeScreen()
+        {
+            spriteBatch.Draw(levelChangeTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), Color.White);
+            spriteBatch.DrawString(font, "GET READY!", new Vector2(590f, 150f), Color.White);
+            spriteBatch.DrawString(font, "Lives: " + lives, new Vector2(590f, 180f), Color.White);            
+        }
+
+        #endregion
 
     }
 }
