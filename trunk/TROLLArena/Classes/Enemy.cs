@@ -128,8 +128,7 @@ namespace TROLLArena
             for (int i = 0; i < numEnemies; i++)
             {
                 Enemy enemy = new Enemy(texture, enemyType, baseSpeed, speedVariation, vX, vY);
-                enemy.Position = Game1.GetRandomScreenPosition(enemy.Radius);                                
-                
+                enemy.Position = Game1.GetRandomScreenPosition(enemy.Radius);                                                
             }
         }
     }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.IO;
+using System.Diagnostics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Content;
@@ -29,7 +30,7 @@ namespace TROLLArena
     /// This is the main type for your game
     /// </summary>
     public class Game1 : Microsoft.Xna.Framework.Game
-    {
+    {        
         //Screen Size
         internal const int SCREEN_WIDTH = 1280;
         internal const int SCREEN_HEIGHT = 720;
@@ -48,7 +49,10 @@ namespace TROLLArena
         int enemyCount;
 
         //Font
-        double score = 0;
+        SpriteFont font;
+        SpriteFont main;
+        SpriteFont title;
+        int score = 0;
         string framerate = "";        
 
         //Screens
@@ -61,8 +65,7 @@ namespace TROLLArena
         //Screenshot
 #if WINDOWS
         private ResolveTexture2D resolveTexture;
-        private bool takeScreenshot;        
-        private int screenshotNumber = 1;
+        private bool takeScreenshot;                
         private Thread screenshotThread;
 #endif
 
@@ -75,8 +78,7 @@ namespace TROLLArena
         Texture2D levelChangeTexture;
 
         GraphicsDeviceManager graphics;
-        SpriteBatch spriteBatch;
-        SpriteFont font;
+        SpriteBatch spriteBatch;        
         static Random random;
 
         GameState gameState;
@@ -86,6 +88,7 @@ namespace TROLLArena
         
         protected Vector2 mousePos;
 
+        string t = "";
 
         public Game1()
         {
@@ -95,6 +98,8 @@ namespace TROLLArena
             graphics.IsFullScreen = false;
             Content.RootDirectory = "Content";
             this.IsMouseVisible = false;
+
+            this.Components.Add(new GamerServicesComponent(this));            
         }
 
         /// <summary>
@@ -107,8 +112,6 @@ namespace TROLLArena
         {
             random = new Random();
             this.gameState = GameState.Title;
-
-
 
             base.Initialize();
         }
@@ -123,6 +126,8 @@ namespace TROLLArena
             spriteBatch = new SpriteBatch(GraphicsDevice);
 
             font = Content.Load<SpriteFont>(@"Textures\Tahoma");
+            main = Content.Load<SpriteFont>(@"Textures\LeviBrush");
+            title = Content.Load<SpriteFont>(@"Textures\TitleFont");
             backgroundTexture = Content.Load<Texture2D>(@"Textures\background");
             playerTexture = Content.Load<Texture2D>(@"Textures\TROLLET_HD_small");
             enemyTexture = Content.Load<Texture2D>(@"Textures\japan");
@@ -130,7 +135,10 @@ namespace TROLLArena
             levelChangeTexture = Content.Load<Texture2D>(@"Textures\GetReady");
             titleTexture = Content.Load<Texture2D>(@"Textures\title");
 
-
+            StreamReader f = new StreamReader("test.txt");            
+            t = f.ReadLine();
+            t = Encryption.EncryptOrDecrypt(t, "7mmAMPjL");
+            f.Close();
         }
 
         /// <summary>
@@ -139,7 +147,11 @@ namespace TROLLArena
         /// </summary>
         protected override void UnloadContent()
         {
-            // TODO: Unload any non ContentManager content here            
+            // TODO: Unload any non ContentManager content here    
+            StreamWriter file = new StreamWriter("test.txt");
+            string encScore = Encryption.EncryptOrDecrypt(this.score.ToString(), "7mmAMPjL");
+            file.WriteLine(encScore);
+            file.Close();
         }
 
         /// <summary>
@@ -240,7 +252,7 @@ namespace TROLLArena
                                 try
                                 {
                                     ip = Dns.GetHostEntry("highscore.burbruee.se");
-                                    Highscores.sendScore("1", "Burbruee", "Enemies: " + enemyCount + "<br />Died at " + gameTime.TotalGameTime.Minutes.ToString() + " min, " + gameTime.TotalGameTime.Seconds.ToString() + " sec", (int)score);
+                                    //Highscores.sendScore("1", "Burbruee", "Enemies: " + enemyCount + "<br />Died at " + gameTime.TotalGameTime.Minutes.ToString() + " min, " + gameTime.TotalGameTime.Seconds.ToString() + " sec", (int)score);
                                 }
                                 catch (Exception ex)
                                 {
@@ -286,8 +298,7 @@ namespace TROLLArena
             switch (this.gameState)
             {
                 case GameState.Title:
-                    DrawTitleScreen();
-                    spriteBatch.DrawString(font, "PRESS SPACEBAR TO BEGIN", new Vector2(SCREEN_WIDTH/2-120, SCREEN_HEIGHT/2-30), Color.White);                    
+                    DrawTitleScreen();                    
                     break;                    
 
                 case GameState.LevelChange:
@@ -303,13 +314,16 @@ namespace TROLLArena
 
                     //Draw Actors                    
                     Actor.DrawActors(spriteBatch);
+
                     
-                    //Draw Info
-                    spriteBatch.DrawString(font, this.player.CollisionState, new Vector2(10, 600), Color.White);
-                    spriteBatch.DrawString(font, "Time: " + gameTime.ElapsedGameTime.Minutes.ToString() + " min, " + gameTime.TotalGameTime.Seconds.ToString() + " sec", new Vector2(10, 600), Color.White);                    
-                    spriteBatch.DrawString(font, "Enemies: " + enemyCount, new Vector2(10, 630), Color.White);
-                    spriteBatch.DrawString(font, "Score: " + score.ToString("F2"), new Vector2(10, 690), Color.White);
-                    spriteBatch.DrawString(font, "FPS: " + framerate, new Vector2(10, 660), Color.White);                    
+
+                    //Draw Info                    
+                    //spriteBatch.DrawString(title, "Time: " + gameTime.ElapsedGameTime.Minutes.ToString() + " min, " + gameTime.TotalGameTime.Seconds.ToString() + " sec", new Vector2(10, 560), Color.White);                                        
+
+                    spriteBatch.DrawString(title, t, new Vector2(10, 560), Color.White);
+                    spriteBatch.DrawString(title, "Enemies: " + enemyCount, new Vector2(10, 600), Color.White);
+                    spriteBatch.DrawString(title, "Score: " + score, new Vector2(10, 640), Color.White);
+                    //spriteBatch.DrawString(title, "FPS: " + framerate, new Vector2(10, 680), Color.White);                    
 
                     //Draw Deathscreen
                     if (this.gameState == GameState.Died)
@@ -395,6 +409,7 @@ namespace TROLLArena
         private void DrawTitleScreen()
         {
             spriteBatch.Draw(titleTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), Color.White);
+            spriteBatch.DrawString(title, "PRESS SPACEBAR TO BEGIN", new Vector2(SCREEN_WIDTH / 2 - 200, SCREEN_HEIGHT / 2 ), Color.White);                    
         }
 
         private void DrawDeathScreen()
@@ -407,15 +422,13 @@ namespace TROLLArena
         private void DrawGameOverScreen()
         {
             spriteBatch.Draw(overlayTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), overlayColor);
-            spriteBatch.DrawString(font, "GAME OVER!", new Vector2(590f, 150f), Color.White);
-            spriteBatch.DrawString(font, "PRESS ENTER TO RETURN TO TITLE SCREEN!", new Vector2(440f, 180f), Color.White);
+            spriteBatch.DrawString(main, "GAME OVER!", new Vector2(520f, 170f), Color.White);            
         }
 
         private void DrawLevelChangeScreen()
         {
             spriteBatch.Draw(levelChangeTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), Color.White);
-            spriteBatch.DrawString(font, "GET READY!", new Vector2(590f, 150f), Color.White);
-            spriteBatch.DrawString(font, "Lives: " + lives, new Vector2(590f, 180f), Color.White);            
+            spriteBatch.DrawString(main, "GET READY!", new Vector2(520f, 180f), Color.White);                  
         }
 
         #endregion
