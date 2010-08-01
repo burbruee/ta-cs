@@ -52,7 +52,11 @@ namespace TROLLArena
         SpriteFont font;
         SpriteFont main;
         SpriteFont title;
+
+        //Score
         int score = 0;
+        int highscore = 0;
+        string decHighscore = "";
         string framerate = "";        
 
         //Screens
@@ -63,11 +67,9 @@ namespace TROLLArena
         const int STARTING_LIVES = 3;
 
         //Screenshot
-#if WINDOWS
         private ResolveTexture2D resolveTexture;
         private bool takeScreenshot;                
         private Thread screenshotThread;
-#endif
 
         //Textures
         Texture2D backgroundTexture;
@@ -85,10 +87,10 @@ namespace TROLLArena
         float deltaFPSTime = 0;
 
         double timer = 10;
-        
-        protected Vector2 mousePos;
+        bool songStart = false;
+        bool newHighscore = false;
 
-        string t = "";
+        protected Vector2 mousePos;
 
         public Game1()
         {
@@ -112,6 +114,7 @@ namespace TROLLArena
         {
             random = new Random();
             this.gameState = GameState.Title;
+            SoundHelper.Initialize();
 
             base.Initialize();
         }
@@ -135,10 +138,14 @@ namespace TROLLArena
             levelChangeTexture = Content.Load<Texture2D>(@"Textures\GetReady");
             titleTexture = Content.Load<Texture2D>(@"Textures\title");
 
-            StreamReader f = new StreamReader("test.txt");            
-            t = f.ReadLine();
-            t = Encryption.EncryptOrDecrypt(t, "7mmAMPjL");
-            f.Close();
+            if (File.Exists("score.dat"))
+            {
+                StreamReader f = new StreamReader("score.dat");
+                decHighscore = f.ReadLine();                
+                decHighscore = Encryption.EncryptOrDecrypt(decHighscore, "9pu3esp4t-uSethe=adRecrekucrexu7raj-pranEwerethaxaZ&puf2edrah6wa");
+                this.highscore = Int32.Parse(decHighscore);
+                f.Close();
+            }
         }
 
         /// <summary>
@@ -148,9 +155,9 @@ namespace TROLLArena
         protected override void UnloadContent()
         {
             // TODO: Unload any non ContentManager content here    
-            StreamWriter file = new StreamWriter("test.txt");
-            string encScore = Encryption.EncryptOrDecrypt(this.score.ToString(), "7mmAMPjL");
-            file.WriteLine(encScore);
+            StreamWriter file = new StreamWriter("score.dat");
+            string encHighscore = Encryption.EncryptOrDecrypt(this.highscore.ToString(), "9pu3esp4t-uSethe=adRecrekucrexu7raj-pranEwerethaxaZ&puf2edrah6wa");
+            file.WriteLine(encHighscore);
             file.Close();
         }
 
@@ -167,29 +174,38 @@ namespace TROLLArena
             MouseState mouseState = Mouse.GetState();
             mousePos = new Vector2(mouseState.X, mouseState.Y);
 
+            SoundHelper.Update();
+            if (!songStart)
+            {
+                SoundHelper.PlaySound(0);
+                songStart = true;
+            } 
             // Allows the game to exit
             if (gamePadState.Buttons.Back == ButtonState.Pressed)
                 this.Exit();
 
             switch (this.gameState)
             {
-                case GameState.Title:
+                case GameState.Title:                    
+                    //songStart = false;
                     if (Keyboard.GetState().IsKeyDown(Keys.Space))
-                    {
+                    {                        
                         BeginGame();
                         this.gameState = GameState.LevelChange;
                     }
+                    else if (Keyboard.GetState().IsKeyDown(Keys.Escape))
+                        Exit();                    
+
                     break;
 
                 case GameState.LevelChange:
-
                     Thread.Sleep(3000);    
                     BeginLevel();
                     this.gameState = GameState.Playing;
                     
                     break;
 
-                case GameState.Playing:                                        
+                case GameState.Playing:
                     float elapsed = (float)gameTime.ElapsedRealTime.TotalMilliseconds;                    
                     deltaFPSTime += elapsed;
 
@@ -198,14 +214,11 @@ namespace TROLLArena
                         float fps = 1000 / elapsed;
                         framerate = fps.ToString("F2");
                         deltaFPSTime -= 1;
-                    }
-                    
-                    //Update score
-                    //this.score += gameTime.ElapsedGameTime.TotalSeconds;                  
+                    }              
 
-                    for (int i = Actor.Actors.Count - 1; i >= 0; i--)
+                    for (int i = Sprite.Sprites.Count - 1; i >= 0; i--)
                     {
-                        Actor actor = Actor.Actors[i];
+                        Sprite actor = Sprite.Sprites[i];
                         actor.Update(gameTime);
 
 
@@ -231,7 +244,7 @@ namespace TROLLArena
 
                         Enemy enemy = actor as Enemy;
                         //Update enemies
-                        enemyCount = (int)Actor.Actors.Count() - 1;
+                        enemyCount = (int)Sprite.Sprites.Count() - 1;
                         
 
                         if (gameTime.TotalGameTime.TotalSeconds > timer)
@@ -245,18 +258,25 @@ namespace TROLLArena
                          
                         if (enemy != null)
                         {
-                            if (!player.IsInvincible && enemy.IsHarmful && Actor.CheckCollision(enemy, this.player))
+                            if (!player.IsInvincible && enemy.IsHarmful && Sprite.CheckCollision(enemy, this.player))
                             {
-
-                                IPHostEntry ip = null;
-                                try
+                                SoundHelper.PlaySound(2);
+                                if (score > highscore)
                                 {
-                                    ip = Dns.GetHostEntry("highscore.burbruee.se");
-                                    //Highscores.sendScore("1", "Burbruee", "Enemies: " + enemyCount + "<br />Died at " + gameTime.TotalGameTime.Minutes.ToString() + " min, " + gameTime.TotalGameTime.Seconds.ToString() + " sec", (int)score);
-                                }
-                                catch (Exception ex)
-                                {
-                                    Console.WriteLine(ex.Message);
+                                    newHighscore = true;
+                                    highscore = score;                                    
+                                    IPHostEntry ip = null;
+                                    try
+                                    {
+                                        ip = Dns.GetHostEntry("highscore.burbruee.se");
+                                        Highscores.sendScore("1", "Burbruee", "Enemies: " + enemyCount, highscore);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine(ex.Message);
+                                    }
+                                    takeScreenshot = true;
+                                    Screenshot();
                                 }
 
                                 this.lives--;
@@ -274,11 +294,8 @@ namespace TROLLArena
                     break;
 
                 case GameState.Gameover:
-                    takeScreenshot = true;
-                    Screenshot();
                     Thread.Sleep(3000);                    
                     this.gameState = GameState.Title;
-                    
                     break;
             }
 
@@ -308,21 +325,26 @@ namespace TROLLArena
                 case GameState.Playing:
                 case GameState.Died:
                 case GameState.Gameover:
+                    if (!songStart)
+                    {                        
+                        songStart = true;
+                    }
 
                     //Draw Background
                     spriteBatch.Draw(backgroundTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), Color.White);
 
                     //Draw Actors                    
-                    Actor.DrawActors(spriteBatch);
+                    Sprite.DrawActors(spriteBatch);
 
                     
 
                     //Draw Info                    
                     //spriteBatch.DrawString(title, "Time: " + gameTime.ElapsedGameTime.Minutes.ToString() + " min, " + gameTime.TotalGameTime.Seconds.ToString() + " sec", new Vector2(10, 560), Color.White);                                        
 
-                    spriteBatch.DrawString(title, t, new Vector2(10, 560), Color.White);
-                    spriteBatch.DrawString(title, "Enemies: " + enemyCount, new Vector2(10, 600), Color.White);
-                    spriteBatch.DrawString(title, "Score: " + score, new Vector2(10, 640), Color.White);
+                    
+                    spriteBatch.DrawString(title, "Enemies: " + enemyCount, new Vector2(10, 580), Color.White);
+                    spriteBatch.DrawString(title, "Score: " + score, new Vector2(10, 620), Color.White);
+                    spriteBatch.DrawString(title, "Highscore: " + highscore.ToString(), new Vector2(10, 660), Color.White);
                     //spriteBatch.DrawString(title, "FPS: " + framerate, new Vector2(10, 680), Color.White);                    
 
                     //Draw Deathscreen
@@ -351,8 +373,9 @@ namespace TROLLArena
 
         private void BeginLevel()
         {
-            Actor.Actors.Clear();
+            Sprite.Sprites.Clear();
             this.score = 0;
+            this.newHighscore = false;
             ENEMY_VELOCITY_X = 4f;
             ENEMY_VELOCITY_Y = 3f;
 
@@ -394,7 +417,7 @@ namespace TROLLArena
 
         public static Vector2 GetRandomScreenPosition(int padding)
         {
-            return new Vector2(random.Next(padding, SCREEN_WIDTH - padding), random.Next(padding, SCREEN_HEIGHT - padding));
+            return new Vector2(random.Next(padding, SCREEN_WIDTH - 40 - padding), random.Next(padding, SCREEN_HEIGHT - 40 - padding));
         }
 
         public static float Range(float min, float max)
@@ -409,7 +432,9 @@ namespace TROLLArena
         private void DrawTitleScreen()
         {
             spriteBatch.Draw(titleTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), Color.White);
-            spriteBatch.DrawString(title, "PRESS SPACEBAR TO BEGIN", new Vector2(SCREEN_WIDTH / 2 - 200, SCREEN_HEIGHT / 2 ), Color.White);                    
+            spriteBatch.DrawString(title, "Coding: Burbruee - Original Idea: Hideous (Mr. 142) - Music: Jallabert (mr_kruuuk)", new Vector2(50, 10), Color.White);                    
+            spriteBatch.DrawString(title, "PRESS SPACEBAR TO BEGIN", new Vector2(SCREEN_WIDTH / 2 - 200, SCREEN_HEIGHT / 2 ), Color.White);
+            spriteBatch.DrawString(title, "OR ESC TO EXIT", new Vector2(SCREEN_WIDTH / 2 - 120, SCREEN_HEIGHT / 2 + 60), Color.White);                    
         }
 
         private void DrawDeathScreen()
@@ -422,7 +447,11 @@ namespace TROLLArena
         private void DrawGameOverScreen()
         {
             spriteBatch.Draw(overlayTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), overlayColor);
-            spriteBatch.DrawString(main, "GAME OVER!", new Vector2(520f, 170f), Color.White);            
+            spriteBatch.DrawString(main, "GAME OVER!", new Vector2(520f, 160f), Color.White);
+            if (newHighscore)
+            {
+                spriteBatch.DrawString(main, "NEW HIGHSCORE!", new Vector2(470f, 220f), Color.White);
+            }
         }
 
         private void DrawLevelChangeScreen()
