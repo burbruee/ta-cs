@@ -56,6 +56,10 @@
     <XnaCompressContent>true</XnaCompressContent>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Encryption, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\Encryption\Encryption\bin\Release\Encryption.dll</HintPath>
+    </Reference>
     <Reference Include="Highscores, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\Highscores\Highscores\bin\Release\Highscores.dll</HintPath>
