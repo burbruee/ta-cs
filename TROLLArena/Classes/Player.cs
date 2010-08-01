@@ -7,7 +7,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TROLLArena
 {
-    class Player : Actor
+    class Player : Sprite
     {
         private float invincibilityTime;
 

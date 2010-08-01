@@ -7,7 +7,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TROLLArena
 {
-    class Enemy : Actor
+    class Enemy : Sprite
     {
         const float ENEMY_SCALE_TIME = 1.5f;
 
@@ -91,10 +91,10 @@ namespace TROLLArena
                 if (this.amount >= 1f)
                     this.SetBouncingMove();
 
-                if (this.position.X < (this.Origin.X+10)) this.vX = -this.vX;
-                if (this.position.Y < (this.Origin.Y)) this.vY = -this.vY;
-                if (this.position.X > (Game1.SCREEN_WIDTH - this.Origin.X-10)) this.vX = -this.vX;
-                if (this.position.Y > (Game1.SCREEN_HEIGHT - this.Origin.Y)) this.vY = -this.vY;
+                if (this.position.X < (this.Origin.X + 10)) { SoundHelper.PlaySound(1); this.vX = -this.vX; SoundHelper.PlaySound(1); }
+                if (this.position.Y < (this.Origin.Y)) { SoundHelper.PlaySound(1); this.vY = -this.vY; SoundHelper.PlaySound(1); }
+                if (this.position.X > (Game1.SCREEN_WIDTH - this.Origin.X - 10)) { SoundHelper.PlaySound(1); this.vX = -this.vX; SoundHelper.PlaySound(1); }
+                if (this.position.Y > (Game1.SCREEN_HEIGHT - this.Origin.Y)) { SoundHelper.PlaySound(1); this.vY = -this.vY; SoundHelper.PlaySound(1); }
             }
 
             angle += 0.010f;
