@@ -8,22 +8,20 @@ using System.Diagnostics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Content;
-using Microsoft.Xna.Framework.GamerServices;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using Microsoft.Xna.Framework.Media;
-using Microsoft.Xna.Framework.Net;
-using Microsoft.Xna.Framework.Storage;
 
 namespace TROLLArena
 {
     enum GameState
     {
+        Setup,
         Title,
         LevelChange,
         Playing,
         Died,
-        Gameover
+        Gameover,
+        Highscores
     }
 
     /// <summary>
@@ -59,6 +57,22 @@ namespace TROLLArena
         string decHighscore = "";
         string framerate = "";        
 
+        //Fading
+        int mAlphaValue = 1;
+        int mFadeIncrement = 25;
+        double mFadeDelay = .5;
+
+        //Timer
+        float getReadyTimer;
+
+        //Name Input
+        Xin xinComponent;
+        string text;
+        bool canType = true;
+
+        //Parallax
+        Parallax background;
+
         //Screens
         Color overlayColor = new Color(225, 0, 0, 143);
 
@@ -71,13 +85,13 @@ namespace TROLLArena
         private bool takeScreenshot;                
         private Thread screenshotThread;
 
-        //Textures
-        Texture2D backgroundTexture;
+        //Textures        
         Texture2D playerTexture;
         Texture2D enemyTexture;
         Texture2D overlayTexture;
         Texture2D titleTexture;
         Texture2D levelChangeTexture;
+        Texture2D starsTexture;
 
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;        
@@ -93,15 +107,17 @@ namespace TROLLArena
         protected Vector2 mousePos;
 
         public Game1()
-        {
+        {            
             graphics = new GraphicsDeviceManager(this);
             graphics.PreferredBackBufferWidth = SCREEN_WIDTH;
             graphics.PreferredBackBufferHeight = SCREEN_HEIGHT;
             graphics.IsFullScreen = false;
+            xinComponent = new Xin(this);
+            Components.Add(xinComponent);
             Content.RootDirectory = "Content";
             this.IsMouseVisible = false;
 
-            this.Components.Add(new GamerServicesComponent(this));            
+            //this.Components.Add(new GamerServicesComponent(this));            
         }
 
         /// <summary>
@@ -112,10 +128,11 @@ namespace TROLLArena
         /// </summary>
         protected override void Initialize()
         {
+            text = "";
             random = new Random();
-            this.gameState = GameState.Title;
+            this.gameState = GameState.Setup;
             SoundHelper.Initialize();
-
+            
             base.Initialize();
         }
 
@@ -131,12 +148,16 @@ namespace TROLLArena
             font = Content.Load<SpriteFont>(@"Textures\Tahoma");
             main = Content.Load<SpriteFont>(@"Textures\LeviBrush");
             title = Content.Load<SpriteFont>(@"Textures\TitleFont");
-            backgroundTexture = Content.Load<Texture2D>(@"Textures\background");
             playerTexture = Content.Load<Texture2D>(@"Textures\TROLLET_HD_small");
             enemyTexture = Content.Load<Texture2D>(@"Textures\japan");
             overlayTexture = Content.Load<Texture2D>(@"Textures\fill");
             levelChangeTexture = Content.Load<Texture2D>(@"Textures\GetReady");
             titleTexture = Content.Load<Texture2D>(@"Textures\title");
+
+            background = new Parallax(
+               Content,
+               @"Textures\PrimaryBackground",
+               @"Textures\ParallaxStars");
 
             if (File.Exists("score.dat"))
             {
@@ -178,14 +199,48 @@ namespace TROLLArena
             if (!songStart)
             {
                 SoundHelper.PlaySound(0);
-                songStart = true;
+                songStart = true;                
             } 
             // Allows the game to exit
             if (gamePadState.Buttons.Back == ButtonState.Pressed)
                 this.Exit();
+//Decrement the delay by the number of seconds that have elapsed since
+                        //the last time that the Update method was called
+                        mFadeDelay -= gameTime.ElapsedGameTime.TotalSeconds;
 
+                        //If the Fade delays has dropped below zero, then it is time to 
+                        //fade in/fade out the image a little bit more.
+                        if (mFadeDelay <= 0)
+                        {
+                            //Reset the Fade delay
+                            mFadeDelay = .035;
+
+                            //Increment/Decrement the fade value for the image
+                            mAlphaValue += mFadeIncrement;
+
+                            //If the AlphaValue is equal or above the max Alpha value or
+                            //has dropped below or equal to the min Alpha value, then 
+                            //reverse the fade
+                            if (mAlphaValue >= 255 || mAlphaValue <= 0)
+                            {
+                                mFadeIncrement *= -1;
+                            }
+                        }
             switch (this.gameState)
             {
+                case GameState.Setup:
+                    background.BackgroundOffset += 1;
+                    background.ParallaxOffset += 2;
+
+                    if (canType)
+                    {                                               
+                        CheckKeys();
+                    }
+                    else
+                        this.gameState = GameState.Title;
+
+                    break;
+
                 case GameState.Title:                    
                     //songStart = false;
                     if (Keyboard.GetState().IsKeyDown(Keys.Space))
@@ -199,15 +254,24 @@ namespace TROLLArena
                     break;
 
                 case GameState.LevelChange:
-                    Thread.Sleep(3000);    
-                    BeginLevel();
-                    this.gameState = GameState.Playing;
+                    //Thread.Sleep(3000);    
                     
+                    getReadyTimer += (float)gameTime.ElapsedGameTime.TotalSeconds;
+                    if (getReadyTimer >= 2.0f)
+                    {
+                        BeginLevel();
+                        this.gameState = GameState.Playing;
+                    }
+
                     break;
 
                 case GameState.Playing:
                     float elapsed = (float)gameTime.ElapsedRealTime.TotalMilliseconds;                    
                     deltaFPSTime += elapsed;
+                    
+                    //Parallax
+                    background.BackgroundOffset += 1;
+                    background.ParallaxOffset += 2;
 
                     if (deltaFPSTime > 1000)
                     {
@@ -269,7 +333,7 @@ namespace TROLLArena
                                     try
                                     {
                                         ip = Dns.GetHostEntry("highscore.burbruee.se");
-                                        Highscores.sendScore("1", "Burbruee", "Enemies: " + enemyCount, highscore);
+                                        Highscores.sendScore("1", text, "Enemies: " + enemyCount, highscore);
                                     }
                                     catch (Exception ex)
                                     {
@@ -289,17 +353,94 @@ namespace TROLLArena
 
                 case GameState.Died:
                     Thread.Sleep(3000);
-                    this.gameState = GameState.LevelChange;                                            
+                    this.gameState = GameState.Highscores;                                            
 
                     break;
 
                 case GameState.Gameover:
                     Thread.Sleep(3000);                    
+                    this.gameState = GameState.Highscores;
+                    break;
+
+                case GameState.Highscores:
+                    Thread.Sleep(5000);
                     this.gameState = GameState.Title;
                     break;
             }
 
             base.Update(gameTime);
+        }
+
+        private void CheckKeys()
+        {
+            string newChar = "";
+
+            if (Xin.CheckKeyPress(Keys.A))
+                newChar += "a";
+            if (Xin.CheckKeyPress(Keys.B))
+                newChar += "b";
+            if (Xin.CheckKeyPress(Keys.C))
+                newChar += "c";
+            if (Xin.CheckKeyPress(Keys.D))
+                newChar += "d";
+            if (Xin.CheckKeyPress(Keys.E))
+                newChar += "e";
+            if (Xin.CheckKeyPress(Keys.F))
+                newChar += "f";
+            if (Xin.CheckKeyPress(Keys.G))
+                newChar += "g";
+            if (Xin.CheckKeyPress(Keys.H))
+                newChar += "h";
+            if (Xin.CheckKeyPress(Keys.I))
+                newChar += "i";
+            if (Xin.CheckKeyPress(Keys.J))
+                newChar += "j";
+            if (Xin.CheckKeyPress(Keys.K))
+                newChar += "k";
+            if (Xin.CheckKeyPress(Keys.L))
+                newChar += "l";
+            if (Xin.CheckKeyPress(Keys.M))
+                newChar += "m";
+            if (Xin.CheckKeyPress(Keys.N))
+                newChar += "n";
+            if (Xin.CheckKeyPress(Keys.O))
+                newChar += "o";
+            if (Xin.CheckKeyPress(Keys.P))
+                newChar += "p";
+            if (Xin.CheckKeyPress(Keys.Q))
+                newChar += "q";
+            if (Xin.CheckKeyPress(Keys.R))
+                newChar += "r";
+            if (Xin.CheckKeyPress(Keys.S))
+                newChar += "s";
+            if (Xin.CheckKeyPress(Keys.T))
+                newChar += "t";
+            if (Xin.CheckKeyPress(Keys.U))
+                newChar += "u";
+            if (Xin.CheckKeyPress(Keys.V))
+                newChar += "v";
+            if (Xin.CheckKeyPress(Keys.W))
+                newChar += "w";
+            if (Xin.CheckKeyPress(Keys.X))
+                newChar += "x";
+            if (Xin.CheckKeyPress(Keys.Y))
+                newChar += "y";
+            if (Xin.CheckKeyPress(Keys.Z))
+                newChar += "z";
+            if (Xin.CheckKeyPress(Keys.Back))
+            {
+                if (text.Length != 0)
+                    text = text.Remove(text.Length - 1);
+            }
+	    if (Xin.IsKeyDown(Keys.RightShift) ||
+	        Xin.IsKeyDown(Keys.LeftShift))            
+	    {
+	        newChar = newChar.ToUpper();
+	    }
+            if (Xin.CheckKeyPress(Keys.Enter))
+                canType = false;
+
+            text += newChar;
         }
 
         /// <summary>
@@ -308,12 +449,16 @@ namespace TROLLArena
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.CornflowerBlue);
+            GraphicsDevice.Clear(Color.Black);
 
             spriteBatch.Begin(SpriteBlendMode.AlphaBlend);
 
             switch (this.gameState)
             {
+                case GameState.Setup:
+                    DrawSetupScreen();
+                    break;
+
                 case GameState.Title:
                     DrawTitleScreen();                    
                     break;                    
@@ -330,13 +475,11 @@ namespace TROLLArena
                         songStart = true;
                     }
 
-                    //Draw Background
-                    spriteBatch.Draw(backgroundTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), Color.White);
+                    //Draw Parallax background
+                    background.Draw(spriteBatch);
 
                     //Draw Actors                    
-                    Sprite.DrawActors(spriteBatch);
-
-                    
+                    Sprite.DrawActors(spriteBatch);                    
 
                     //Draw Info                    
                     //spriteBatch.DrawString(title, "Time: " + gameTime.ElapsedGameTime.Minutes.ToString() + " min, " + gameTime.TotalGameTime.Seconds.ToString() + " sec", new Vector2(10, 560), Color.White);                                        
@@ -349,10 +492,19 @@ namespace TROLLArena
 
                     //Draw Deathscreen
                     if (this.gameState == GameState.Died)
+                    {
                         DrawDeathScreen();
+                        
+                    }
                     else if (this.gameState == GameState.Gameover)
+                    {
                         DrawGameOverScreen();
+                        
+                    }
 
+                    break;
+                case GameState.Highscores:
+                    DrawHighscores();
                     break;
             }
 
@@ -429,12 +581,51 @@ namespace TROLLArena
 
         #region screens
 
+        private void DrawSetupScreen()
+        {
+            background.Draw(spriteBatch);            
+            spriteBatch.DrawString(title, "HEY NEW PLAYER, ENTER YOUR NAME HERE!", new Vector2(SCREEN_WIDTH / 2 - 300, SCREEN_HEIGHT / 2 - 100), new Color(255, 255, 255, (byte)MathHelper.Clamp(mAlphaValue, 0, 255)));
+            spriteBatch.DrawString(title, "Name : " + text, new Vector2(SCREEN_WIDTH / 2 - 300, SCREEN_HEIGHT / 2 - 50), Color.Yellow);
+        }
+
+        private void DrawHighscores()
+        {
+            spriteBatch.Draw(levelChangeTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), Color.White);
+            Vector2 hsPos = new Vector2(250, 150);            
+
+            List<string[]> ls = new List<string[]>();
+            ls = Highscores.HttpGet("http://highscore.burbruee.se/api.php", "?ModeID=1&Format=TOP10");
+
+            Color colNick;
+
+            spriteBatch.DrawString(title, "TROLLArena Highscores TOP10", new Vector2(450, 50), Color.Yellow);
+
+            for (int i = 0; i < 10; i++)
+            {
+                
+                if (ls[i][1] == text)
+                {
+                    colNick = new Color(255, 255, 0);
+                }
+                else
+                {
+                    colNick = new Color(255, 255, 255);
+                }
+
+                spriteBatch.DrawString(title, ls[i][0], hsPos, colNick);
+                spriteBatch.DrawString(title, ls[i][1], new Vector2(500, hsPos.Y), colNick);
+                spriteBatch.DrawString(title, ls[i][2], new Vector2(1000, hsPos.Y), colNick);
+                hsPos.Y += 50;
+            }
+            
+        }
+
         private void DrawTitleScreen()
         {
             spriteBatch.Draw(titleTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), Color.White);
-            spriteBatch.DrawString(title, "Coding: Burbruee - Original Idea: Hideous (Mr. 142) - Music: Jallabert (mr_kruuuk)", new Vector2(50, 10), Color.White);                    
-            spriteBatch.DrawString(title, "PRESS SPACEBAR TO BEGIN", new Vector2(SCREEN_WIDTH / 2 - 200, SCREEN_HEIGHT / 2 ), Color.White);
-            spriteBatch.DrawString(title, "OR ESC TO EXIT", new Vector2(SCREEN_WIDTH / 2 - 120, SCREEN_HEIGHT / 2 + 60), Color.White);                    
+            spriteBatch.DrawString(title, "Coding: Burbruee - Original Idea: Hideous (Mr. 142) - Music: Jallabert (mr_kruuuk)", new Vector2(50, 10), Color.White);
+            spriteBatch.DrawString(title, "PRESS SPACEBAR TO BEGIN", new Vector2(SCREEN_WIDTH / 2 - 200, SCREEN_HEIGHT / 2), new Color(255, 255, 255, (byte)MathHelper.Clamp(mAlphaValue, 0, 255)));
+            spriteBatch.DrawString(title, "OR ESC TO EXIT", new Vector2(SCREEN_WIDTH / 2 - 120, SCREEN_HEIGHT / 2 + 60), new Color(255, 255, 255, (byte)MathHelper.Clamp(mAlphaValue, 0, 255)));                    
         }
 
         private void DrawDeathScreen()
@@ -457,7 +648,7 @@ namespace TROLLArena
         private void DrawLevelChangeScreen()
         {
             spriteBatch.Draw(levelChangeTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), Color.White);
-            spriteBatch.DrawString(main, "GET READY!", new Vector2(520f, 180f), Color.White);                  
+            spriteBatch.DrawString(main, "GET READY!", new Vector2(520f, 180f), new Color(255, 255, 255, (byte)MathHelper.Clamp(mAlphaValue, 0, 255)));                  
         }
 
         #endregion
