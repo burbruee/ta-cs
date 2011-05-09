@@ -154,10 +154,10 @@ namespace TROLLArena
 
             return distance < actorA.Radius + actorB.Radius;
         }
-
+        
         public bool CheckCollisionWithAny()
         {
-            return false;
+            return false; //DFFDG
         }
 
         public void StartScale(float targetScale, float scaleTime)

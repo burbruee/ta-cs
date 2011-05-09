@@ -9,10 +9,16 @@ namespace TROLLArena
         /// </summary>
         static void Main(string[] args)
         {
-            using (Game1 game = new Game1())
+            try
             {
-                game.Run();
+                using (Game1 game = new Game1())
+                    game.Run();
             }
+
+            catch (Exception e)
+            {
+                System.Windows.Forms.MessageBox.Show(e.ToString());
+            } 
         }
     }
 }
