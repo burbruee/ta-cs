@@ -149,7 +149,7 @@ namespace TROLLArena
             main = Content.Load<SpriteFont>(@"Textures\LeviBrush");
             title = Content.Load<SpriteFont>(@"Textures\TitleFont");
             playerTexture = Content.Load<Texture2D>(@"Textures\TROLLET_HD_small");
-            enemyTexture = Content.Load<Texture2D>(@"Textures\japan");
+            enemyTexture = Content.Load<Texture2D>(@"Textures\cat");
             overlayTexture = Content.Load<Texture2D>(@"Textures\fill");
             levelChangeTexture = Content.Load<Texture2D>(@"Textures\GetReady");
             titleTexture = Content.Load<Texture2D>(@"Textures\title");
@@ -160,10 +160,10 @@ namespace TROLLArena
                @"Textures\ParallaxStars");
 
             if (File.Exists("score.dat"))
-            {
+            {                
                 StreamReader f = new StreamReader("score.dat");
                 decHighscore = f.ReadLine();                
-                decHighscore = Encryption.EncryptOrDecrypt(decHighscore, "9pu3esp4t-uSethe=adRecrekucrexu7raj-pranEwerethaxaZ&puf2edrah6wa");
+                decHighscore = Encryption.EncryptOrDecrypt(decHighscore, Encryption.key);
                 this.highscore = Int32.Parse(decHighscore);
                 f.Close();
             }
@@ -177,7 +177,7 @@ namespace TROLLArena
         {
             // TODO: Unload any non ContentManager content here    
             StreamWriter file = new StreamWriter("score.dat");
-            string encHighscore = Encryption.EncryptOrDecrypt(this.highscore.ToString(), "9pu3esp4t-uSethe=adRecrekucrexu7raj-pranEwerethaxaZ&puf2edrah6wa");
+            string encHighscore = Encryption.EncryptOrDecrypt(this.highscore.ToString(), Encryption.key);
             file.WriteLine(encHighscore);
             file.Close();
         }
@@ -204,28 +204,30 @@ namespace TROLLArena
             // Allows the game to exit
             if (gamePadState.Buttons.Back == ButtonState.Pressed)
                 this.Exit();
-//Decrement the delay by the number of seconds that have elapsed since
-                        //the last time that the Update method was called
-                        mFadeDelay -= gameTime.ElapsedGameTime.TotalSeconds;
+            
+            //Decrement the delay by the number of seconds that have elapsed since
+            //the last time that the Update method was called
+            mFadeDelay -= gameTime.ElapsedGameTime.TotalSeconds;
 
-                        //If the Fade delays has dropped below zero, then it is time to 
-                        //fade in/fade out the image a little bit more.
-                        if (mFadeDelay <= 0)
-                        {
-                            //Reset the Fade delay
-                            mFadeDelay = .035;
+            //If the Fade delays has dropped below zero, then it is time to 
+            //fade in/fade out the image a little bit more.
+            if (mFadeDelay <= 0)
+            {
+                //Reset the Fade delay
+                mFadeDelay = .035;
 
-                            //Increment/Decrement the fade value for the image
-                            mAlphaValue += mFadeIncrement;
+                //Increment/Decrement the fade value for the image
+                mAlphaValue += mFadeIncrement;
 
-                            //If the AlphaValue is equal or above the max Alpha value or
-                            //has dropped below or equal to the min Alpha value, then 
-                            //reverse the fade
-                            if (mAlphaValue >= 255 || mAlphaValue <= 0)
-                            {
-                                mFadeIncrement *= -1;
-                            }
-                        }
+                //If the AlphaValue is equal or above the max Alpha value or
+                //has dropped below or equal to the min Alpha value, then 
+                //reverse the fade
+                if (mAlphaValue >= 255 || mAlphaValue <= 0)
+                {
+                    mFadeIncrement *= -1;
+                }
+            }
+
             switch (this.gameState)
             {
                 case GameState.Setup:
@@ -332,15 +334,15 @@ namespace TROLLArena
                                     IPHostEntry ip = null;
                                     try
                                     {
-                                        ip = Dns.GetHostEntry("highscore.burbruee.se");
+                                        ip = Dns.GetHostEntry("highscore.ettfyratre.se");
                                         Highscores.sendScore("1", text, "Enemies: " + enemyCount, highscore);
                                     }
                                     catch (Exception ex)
                                     {
                                         Console.WriteLine(ex.Message);
                                     }
-                                    takeScreenshot = true;
-                                    Screenshot();
+                                    //takeScreenshot = true;
+                                    //Screenshot();
                                 }
 
                                 this.lives--;
@@ -363,6 +365,11 @@ namespace TROLLArena
                     break;
 
                 case GameState.Highscores:
+                    if (score > highscore)
+                    {
+                        takeScreenshot = true;
+                        Screenshot();
+                    }
                     Thread.Sleep(5000);
                     this.gameState = GameState.Title;
                     break;
@@ -592,31 +599,39 @@ namespace TROLLArena
         {
             spriteBatch.Draw(levelChangeTexture, new Rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT), Color.White);
             Vector2 hsPos = new Vector2(250, 150);            
-
-            List<string[]> ls = new List<string[]>();
-            ls = Highscores.HttpGet("http://highscore.burbruee.se/api.php", "?ModeID=1&Format=TOP10");
-
-            Color colNick;
-
             spriteBatch.DrawString(title, "TROLLArena Highscores TOP10", new Vector2(450, 50), Color.Yellow);
 
-            for (int i = 0; i < 10; i++)
+            try
             {
-                
-                if (ls[i][1] == text)
-                {
-                    colNick = new Color(255, 255, 0);
-                }
-                else
-                {
-                    colNick = new Color(255, 255, 255);
-                }
+                List<string[]> ls = new List<string[]>();
+                ls = Highscores.HttpGet("http://highscore.ettfyratre.se/api.php", "?ModeID=1&Format=TOP10");
 
-                spriteBatch.DrawString(title, ls[i][0], hsPos, colNick);
-                spriteBatch.DrawString(title, ls[i][1], new Vector2(500, hsPos.Y), colNick);
-                spriteBatch.DrawString(title, ls[i][2], new Vector2(1000, hsPos.Y), colNick);
-                hsPos.Y += 50;
+                Color colNick;
+
+                for (int i = 0; i < 10; i++)
+                {
+
+                    if (ls[i][1] == text)
+                    {
+                        colNick = new Color(255, 255, 0);
+                    }
+                    else
+                    {
+                        colNick = new Color(255, 255, 255);
+                    }
+
+                    spriteBatch.DrawString(title, ls[i][0], hsPos, colNick);
+                    spriteBatch.DrawString(title, ls[i][1], new Vector2(500, hsPos.Y), colNick);
+                    spriteBatch.DrawString(title, ls[i][2], new Vector2(1000, hsPos.Y), colNick);
+                    hsPos.Y += 50;
+                }
             }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);                
+                spriteBatch.DrawString(title, "Could not connect to server! Highscore not posted online.", hsPos, Color.White);
+            }
+
             
         }
 
